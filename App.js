@@ -34,20 +34,21 @@ class app extends Component{
 }
 
 componentDidMount() {
-    //this._registerUsers();
-  this._setInitialState();           //Load stored data from AsyncStorage to check user stats and points
+  // this._registerUsers();
+  // this._setInitialState();           //Load stored data from AsyncStorage to check user stats and points
   this._fetchUserResults();         //Request from db for stored data
   this._parseDate();                //Parsing the date so we can check for app opens
   this._appOpens();                 //check app opens and award points for it 
   this._donationPointsUpdate();           //Update donation points
   this._feedbackPoints();             //Set feedback points based on necessary action
-  this._distancePoints();            //
+  this._distancePoints();            //Set points for distance between the 2 users
   console.log(this.state);
+  console.log(this._getCurDate());
 }
   
 //Check api call return output for distance and calculate points accordingly
 _distancePoints() {
-  distance = 3;      //<---- DISTANCE TO BE EXTRACTED FROM THE JSON
+  distance = 3;      //<---- DISTANCE TO BE EXTRACTED FROM THE GOOGLE API JSON<-----GOOGLE-DISTANCE-API integration
   for (i = 0; i < distance; i=i+5)
   {
     this.state.points.distancePoints = this.state.points.distancePoints + 5;
@@ -56,11 +57,16 @@ _distancePoints() {
 }
   
 //Points based on user feedback  ---->One time only
-_feedbackPoints() {
+  _feedbackPoints() {
+  //If user feedback is done && is true:
     if (true) {
       this.state.points.feedbackPoints = 25;
       this.forceUpdate();
     }
+  
+    //Else if feedback isnt done, then dont update, leave it be
+    //UPDATE DB WITH NEW feedbackPoints VALUE
+    
  }
     
 //Assign points based on number of donations
@@ -71,7 +77,9 @@ _donationPointsUpdate()
     {
       this.state.points.donationPoints = this.state.points.donationPoints + 50;
       this.forceUpdate();
-      }
+    }
+  
+  //--->UPDATE THE donationPoints VALUE IN DB-->
  } 
   
 //Set stored data into state data.
@@ -137,9 +145,20 @@ _appOpens()
       this.state.points.appOpen = 10;
       this.forceUpdate();
     }
-    AsyncStorage.setItem( 'appOpenPoints', JSON.stringify(this.state.points.appOpen) );
+    // AsyncStorage.setItem( 'appOpenPoints', JSON.stringify(this.state.points.appOpen) );
+  
+  //----->UPDATE appOpen in the db-------->
 }
 
+  //Current date for updating into database
+_getCurDate() {
+    months = new Date().getUTCMonth();
+    days = new Date().getUTCDate();
+    years = new Date().getFullYear();
+    d = parseInt(years) * 10000 + parseInt(months) * 100 + parseInt(days);
+    return d;
+}
+  
 //Setting date values to see number of app Opens
 _parseDate() 
 {
@@ -149,19 +168,26 @@ _parseDate()
     years = new Date().getFullYear();
     d = parseInt(years) * 10000 + parseInt(months) * 100 + parseInt(days);
     db = 20190223; //value of date from database 
-    if(db+1>=d)
+    if(db+1==d)         //if <= one day has passed since app last opened
     {
         this.state.date = d;
         this.state.appOpenStreak = this.state.appOpenStreak + 1;
         this.forceUpdate();
+      
+       // AsyncStorage.setItem( 'appOpenStreak' , JSON.stringify(this.state.appOpenStreak) );
+  
+        //------> UPDATE DATABASE FOR appOpenStreak value and lastOpen date value aas mentioned above in the AsyncStorage statement <--------
     }
-    else if (db + 200 < d)
+    else      //if more than one day has passed, set streak to 0
     {
         this.setState({
             appOpenStreak:0
         })
+       // AsyncStorage.setItem( 'appOpenStreak' , JSON.stringify(this.state.appOpenStreak) );
+  
+       //------> UPDATE DATABASE FOR appOpenStreak value as mentioned above in the AsyncStorage statement <--------
     }
-    AsyncStorage.setItem( 'appOpenStreak' , JSON.stringify(this.state.appOpenStreak) );
+   
 
 }
   
@@ -180,6 +206,8 @@ _parseDate()
           this.state.sharePoints = this.state.sharePoints + 2;
           this.forceUpdate();
           AsyncStorage.setItem('sharePoints', JSON.stringify(this.state.sharePoints));
+
+          //UPDATE sharePoints in database.
         } 
       }
 
@@ -206,7 +234,7 @@ _registerUsers= async() =>{
     alert('Registered');
   };
 
-  //API call to db for getting user info - USE THE DATA FOR PARSING REQUIRED OBJECTS FOR SPECIFIC POINTS -> I have left comments on plces where you will need db values
+  //API call to db for getting user info - USE THE DATA FOR PARSING REQUIRED OBJECTS FOR SPECIFIC POINTS -> I have left comments on places where you will need db values
 _fetchUserResults = async () => {
     return fetch('http://localhost:5000/api/show')
       .then((response) => response.json())
@@ -221,6 +249,7 @@ _fetchUserResults = async () => {
               this.forceUpdate();
             }
           });
+        console.log(this.state.users[0]);
         
       })
       .catch((error) =>{
@@ -236,8 +265,8 @@ _fetchUserResults = async () => {
   <LineChart
     data={{
       labels: ['Distance','Opens   ', 'References    ', 'Donations', 'Feedback'],
-      datasets: [{
-        data: [
+      datasets: [{            //Retrieve user data and place all the points in array format here.S
+        data: [ 
           Math.random() * 100,
           Math.random() * 100,
           Math.random() * 100,
